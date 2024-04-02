@@ -1,5 +1,5 @@
 #include <iostream>
-#include <enet.h>
+#include <enet/enet.h>
 
 
 int main(int argc, char ** argv){

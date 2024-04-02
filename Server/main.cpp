@@ -1,5 +1,5 @@
 #include <iostream>
-#include <enet.h>
+#include <enet/enet.h>
 int MAX_PLAYER_LIMIT = 32;
 
 int main(int argc, char ** argv){
