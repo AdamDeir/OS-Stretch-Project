@@ -72,8 +72,7 @@ public class FrontEndMain extends JFrame {
                 String line;
 				System.out.println(" Terminate.get: ");
 				System.out.println(terminate.get());
-                while (!terminate.get()) {
-					line = socketInput.readLine();
+                while (!terminate.get() && (line = socketInput.readLine()) != null) {
                     messageArea.append("Server: " + line + "\n");
 					System.out.println("print 3");
                 }

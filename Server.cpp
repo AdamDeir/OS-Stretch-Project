@@ -61,7 +61,7 @@ public:
                 std::string msg = "Hey mother fucker -- you are player 1\n";
                 socket.Write(msg);
                 }else{
-                std::string msg = "Spectating...";
+                std::string msg = "Spectating...\n";
                 spectatorVectator.push_back(&socket); // Store the pointer
                 socket.Write(msg);
                 }
@@ -109,7 +109,7 @@ public:
                 if (bytesRead > 0)                      // if data was received
                 {
 
-                    std::string response = userInput.ToString()+"\n"; // convert to string
+                    std::string response = userInput.ToString(); // convert to string
                     std::cout << "Data received: " << response << " -- From Socket: " << &socket << std::endl;
 
                     // Forward message to the other client in the game
@@ -140,7 +140,7 @@ public:
                         // socket.Write(msg);
                         //  Since there are only two players, we can break after finding the opponent.
                     }else{
-                        std::string msg = "Shut the fuck up";
+                        std::string msg = "Shut the fuck up\n";
                         socket.Write(msg);
                     }
                 }
@@ -156,7 +156,7 @@ public:
                         {
                             std::cout << "Socket: " << socket << std::endl;
                         }
-                        std::string msg = "You are now in the game!";
+                        std::string msg = "You are now in the game!\n";
                         (*inGame[i]).Write(msg);
 
                         spectatorVectator.erase(spectatorVectator.begin());
