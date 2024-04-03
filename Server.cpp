@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <string> // Add missing include statement
 
 using namespace Sync;
 // global varibles to track clients
@@ -57,7 +58,7 @@ public:
                     }
 
                 if(senderInGame){
-                std::string msg = "Hey mother fucker -- you are player 1";
+                std::string msg = "Hey mother fucker -- you are player 1\n";
                 socket.Write(msg);
                 }else{
                 std::string msg = "Spectating...";
@@ -107,7 +108,8 @@ public:
                 int bytesRead = socket.Read(userInput); // read data from the socket
                 if (bytesRead > 0)                      // if data was received
                 {
-                    std::string response = userInput.ToString(); // convert to string
+
+                    std::string response = userInput.ToString()+"\n"; // convert to string
                     std::cout << "Data received: " << response << " -- From Socket: " << &socket << std::endl;
 
                     // Forward message to the other client in the game
