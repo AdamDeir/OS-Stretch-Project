@@ -9,6 +9,7 @@ using namespace Sync;
 // global varibles to track clients
 std::vector<Socket *> socketVectorTracker;
 std::vector<Socket *> inGame;
+std::vector<Socket *> spectatorVectator; 
 
 // class to manage individual client connections
 class SocketThread : public Thread
@@ -37,11 +38,12 @@ public:
             std::cout << "New Client Connected" << std::endl;
             socketVectorTracker.push_back(&socket); // Store the pointer
 
+
             if (inGame.size() < 2)
             {
                 std::cout << "Added Client to Game" << std::endl;
                 inGame.push_back(&socket); // Store the pointer
-            }
+            } 
             if (inGame.size() == 2)
             {
                 bool senderInGame =false;
@@ -59,6 +61,7 @@ public:
                 socket.Write(msg);
                 }else{
                 std::string msg = "Hey mother fucker -- you are spectating";
+                spectatorVectator.push_back(&socket); // Store the pointer
                 socket.Write(msg);
                 }
             }
@@ -142,6 +145,13 @@ public:
                 else if (bytesRead == 0) // client disconnected
                 {
                     std::cout << "Client disconnected.\n";
+                    for(int i = 0; i < inGame.size(); i++){
+                        if(&socket == inGame[i]){
+                        std::cout << "Client was in the game.\n";
+                        inGame[i] = spectatorVectator[0];
+                        std::cout << "added a spectator to the game: " << spectatorVectator[0] <<std::endl;
+                        }
+                    }
                     break; // exit
                 }
             }
