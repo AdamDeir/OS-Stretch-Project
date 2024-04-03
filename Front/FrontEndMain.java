@@ -70,9 +70,19 @@ public class FrontEndMain extends JFrame {
         Thread listenThread = new Thread(() -> {
             try {
                 String line;
+				boolean startMsg = false;
+				
 				//String oppName = "Username";//change later to actaully get the username
                 while (!terminate.get() && (line = socketInput.readLine()) != null) {
+					System.out.println(line);
+					if(line.equals("Server asks: Ready to start?")){
+						startMsg = true;
+					};
 					String questionResponse = JOptionPane.showInputDialog(line);
+					if(startMsg){
+						questionResponse = "Good Luck!";
+						startMsg = false;
+					}
 					messageArea.append(username + questionResponse + "\n");
 
 					String questionForOpp = JOptionPane.showInputDialog("Question for Opponent:");

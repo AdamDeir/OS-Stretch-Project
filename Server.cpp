@@ -58,7 +58,7 @@ public:
                     }
 
                 if(senderInGame){
-                std::string msg = "Hey mother fucker -- you are player 1\n";
+                std::string msg = "Server asks: Ready to start?\n";
                 socket.Write(msg);
                 }else{
                 std::string msg = "Spectating...\n";
