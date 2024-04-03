@@ -13,13 +13,41 @@ public class FrontEndMain extends JFrame {
     private AtomicBoolean terminate = new AtomicBoolean(false); // Flag to control the listening thread
 	private String username;
 
+
+
+	
     public FrontEndMain() {
         // Initialize GUI Components
         initializeGUI();
 
         // Setup connection and start listening
         connectToServer("127.0.0.1", 3000);
+
+		this.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				terminate.set(true); // Signal threads to terminate
+				try {
+					if (theSocket != null && !theSocket.isClosed()) {
+						theSocket.close(); // Close the socket connection
+					}
+					messageArea.append("Disconnected.\n");
+				} catch (IOException ex) {
+					messageArea.append("Error closing connection: " + ex.getMessage() + "\n");
+				} finally {
+					// Ensure the application exits cleanly
+					System.exit(0);
+				}
+			}
+		});
     }
+
+
+
+
+
+
+	//CLIENT STUFF
 
     private void initializeGUI() {
         setTitle("Network Game Console");
@@ -47,6 +75,23 @@ public class FrontEndMain extends JFrame {
         setVisible(true);
     }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//SERVER STUFF
     private void connectToServer(String host, int port) {
         try {
             if (theSocket != null && !theSocket.isClosed()) {
@@ -57,8 +102,6 @@ public class FrontEndMain extends JFrame {
             socketInput = new BufferedReader(new InputStreamReader(theSocket.getInputStream()));
             messageArea.append("Connected to the server.\n");
 			username = JOptionPane.showInputDialog("Enter your username:");
-			//TODO: send to back end 
-            // Start listening for messages from the server
             startListeningThread();
         } catch (IOException e) {
             messageArea.append("Failed to connect: " + e.getMessage() + "\n");
@@ -71,8 +114,8 @@ public class FrontEndMain extends JFrame {
             try {
                 String line;
 				boolean startMsg = false;
+				boolean spectating = false;
 				
-				//String oppName = "Username";//change later to actaully get the username
                 while (!terminate.get() && (line = socketInput.readLine()) != null) {
 					System.out.println(line);
 					if(line.equals("Server asks: Ready to start?")){
@@ -83,10 +126,14 @@ public class FrontEndMain extends JFrame {
 						questionResponse = "Good Luck!";
 						startMsg = false;
 					}
-					messageArea.append(username + questionResponse + "\n");
+					if (!spectating) {
+						messageArea.append(username + questionResponse + "\n");
 
-					String questionForOpp = JOptionPane.showInputDialog("Question for Opponent:");
-					sendMessage(username + " says: " + questionResponse + " and asks: " + questionForOpp);
+						String questionForOpp = JOptionPane.showInputDialog("Question for Opponent:");
+						sendMessage(username + " says: " + questionResponse + " and asks: " + questionForOpp);
+					}
+
+					
                 }
             } catch (IOException e) {
                 if (!terminate.get()) {
@@ -95,7 +142,6 @@ public class FrontEndMain extends JFrame {
             }
         });
         listenThread.start();
-		System.out.println("we out");
     }
 
     private void sendMessage(String message) {
@@ -117,5 +163,6 @@ public class FrontEndMain extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(FrontEndMain::new);
+		
     }
 }
