@@ -11,6 +11,7 @@ public class FrontEndMain extends JFrame {
     private BufferedReader socketInput;
     private JTextArea messageArea; // For displaying messages and server responses
     private AtomicBoolean terminate = new AtomicBoolean(false); // Flag to control the listening thread
+	private String username;
 
     public FrontEndMain() {
         // Initialize GUI Components
@@ -55,7 +56,8 @@ public class FrontEndMain extends JFrame {
             socketOutput = new PrintWriter(theSocket.getOutputStream(), true);
             socketInput = new BufferedReader(new InputStreamReader(theSocket.getInputStream()));
             messageArea.append("Connected to the server.\n");
-
+			username = JOptionPane.showInputDialog("Enter your username:");
+			//TODO: send to back end 
             // Start listening for messages from the server
             startListeningThread();
         } catch (IOException e) {
@@ -65,16 +67,16 @@ public class FrontEndMain extends JFrame {
     }
 
     private void startListeningThread() {
-		System.out.println("print 1");
         Thread listenThread = new Thread(() -> {
             try {
-				System.out.println("Print 2");
                 String line;
-				System.out.println(" Terminate.get: ");
-				System.out.println(terminate.get());
+				//String oppName = "Username";//change later to actaully get the username
                 while (!terminate.get() && (line = socketInput.readLine()) != null) {
-                    messageArea.append("Server: " + line + "\n");
-					System.out.println("print 3");
+					String questionResponse = JOptionPane.showInputDialog(line);
+					messageArea.append(username + questionResponse + "\n");
+
+					String questionForOpp = JOptionPane.showInputDialog("Question for Opponent:");
+					sendMessage(username + " says: " + questionResponse + " and asks: " + questionForOpp);
                 }
             } catch (IOException e) {
                 if (!terminate.get()) {
