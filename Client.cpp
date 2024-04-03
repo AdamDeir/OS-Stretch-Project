@@ -1,114 +1,148 @@
 #include <iostream>
-#include <enet/enet.h>
+#include <string>
+#include <chrono>
+#include <thread>
+#include "socket.h" 
+#include "thread.h" 
 
+using namespace Sync; // Sync namespace for synchronization utilitie
 
-int main(int argc, char ** argv){
+class ClientManager;
 
-   if(enet_initialize() !=0){
-        fprintf(stderr,"an error occurred while initilizing enet!\n");
-        return EXIT_FAILURE;
-   }
+// inherits from thread and manages the client's communication with the server
+class ServerCommunicator : public Thread {
+private:
+    Socket& _socket; 
+    bool& _terminateFlag; 
+    bool _isConnected = false; //connection status
 
-    atexit(enet_deinitialize);
+public:
+    // constructor initializes the socket and terminate flag
+    ServerCommunicator(Socket& socket, bool& terminateFlag)
+        : _socket(socket), _terminateFlag(terminateFlag) {}
 
-    ENetHost* client;
-    //first param is ip, not needed for client, 2nd -> out going connections, 3rd -> amount of channels, 4 -> incoming bandwidth, 5 -> outgoing bandwidth
-    // 0 tells enet we dont want to limit the bandwidth
-    client = enet_host_create(NULL, 1, 1, 0,0);
+    // attempts to establish a connection to the server
+    void EstablishConnection() {
+        //get username from the user in the temrinal before connecting to server
+        // std::string clientName;
+        // std::cout << "Enter your name (This will be your ID for the session): ";
+        // std::getline(std::cin, clientName);
 
-
-//ensure/check if client was successfully created
-if(client == NULL){
-    fprintf(stderr, "An error occured while trying to create an Enet client host!\n");
-    return EXIT_FAILURE;
-}
-
-//holds ip address and port of the server we will be connecting to
-ENetAddress address;
-ENetEvent event;//hold all events received from server ie data
-ENetPeer* peer; //pointer, peer is the server we are connected to, localized in a enet peer, for sending data to
-//^what we are connecting to
-
-//change the ip to be what you want connect to, chnage to variable or server when implemtion continues
-enet_address_set_host(&address,"127.0.0.1");
-address.port =7777; //port to connect to
-
-
-//initialize the peer
-//param 1 = the client, 2nd = reference to address, 3rd = amount of channels, 4th= any data we want to send right away
-//connects to the peer 
-peer = enet_host_connect(client, &address, 1, 0);
-
-//check if successful
-if(peer == NULL){
-    fprintf(stderr, "no available peers for initiating an enet connection");
-    return EXIT_FAILURE;
-}
-
-//check if server/host has contacted back
-//allows us to see any events being received by the server
-//3rd =  amount of time to wait if we have recieved anything
-//basically check if there was an event and check if it was a connect event
-//to know if the server has connected to us
-if(enet_host_service(client, &event, 5000) > 0 && event.type == ENET_EVENT_TYPE_CONNECT ){
-
-    puts("connection to 127.0.0.1:7777 succeeded");
-}
-else{
-    enet_peer_reset(peer);
-    puts("connection to 127.0.0.1:7777 failed");
-    //could loop back to menu here instead of return
-    return EXIT_SUCCESS;
-}
-
-//GAME LOOP START
-
-//put logic here
-//while loop will go here 
-
-while(enet_host_service(client, &event, 1000))//1000 is the delay ie sleep for a second
-{
-    //switch based on different events that can be received
-    switch(event.type){
-
-        //receive any data
-        //print off all data from the received 
-        case ENET_EVENT_TYPE_RECEIVE:
-            printf ("A packet of length %u containing %s was received from %x:%u on channel %u.\n",
-			event.packet -> dataLength,
-			event.packet -> data,
-			event.peer -> address.host,
-			event.peer -> address.port,
-			event.channelID);
-			break;
+        int attemptCount = 0; // counts the number of connection attempts
+        // keep trying to connect until successful, attempt limit reached, or termination requested
+        while (!_isConnected && attemptCount < 5 && !_terminateFlag) {
+            std::cout << "Trying to connect...";
+            try {
+                _socket.Open(); // attempt to open the socket connection
+                _isConnected = true; // set connection status to true on success
+                std::cout << "Connected successfully." << std::endl;
+                //SendMessageToServer("ClientName:" + clientName); // Prefix with "ClientName:" to indicate ID message
+                
+            } catch (...) {
+                std::cout << "Connection attempt failed." << std::endl;
+                std::this_thread::sleep_for(std::chrono::seconds(5)); // wait 5 seconds before retrying
+            }
+            ++attemptCount; // increment attempt counter
+        }
+        
+        // if connection could not be established, set the termination flag
+        if (!_isConnected) {
+            std::cout << "Connection attempts exceeded. Exiting." << std::endl;
+            _terminateFlag = true;
+        }
     }
 
-}
-//GAME LOOP END
+    // the main function to be executed by the thread
+    virtual long ThreadMain() override {
+        EstablishConnection(); // first attempt to establish a connection
+        
+        // as long as termination is not requested and connection is active, handle server communication
+        while (!_terminateFlag && _isConnected) {
+            ListenToServer();
+            HandleServerCommunication();
+        }
 
-//disconnect from server
-//2nd param is for sending data
-enet_peer_disconnect(peer, 0);
-//wait until we get a response from the server we just disconnected from
-while(enet_host_service(client, &event, 3000) > 0){
-
-    switch(event.type){
-
-        //handle more data received from server
-        //destroy the packet because we dont care cuz disconnecting
-        case ENET_EVENT_TYPE_RECEIVE:
-        enet_packet_destroy(event.packet);
-        break;
-
-        //handle a disconnect from the server
-        case ENET_EVENT_TYPE_DISCONNECT:
-        puts("Disconnection Succeeded");
-        break;
-
+        return 0; 
     }
-}
-return EXIT_SUCCESS;
+
+    // handles the interaction with the server
+    void HandleServerCommunication() {
+        std::string inputMessage; // to store user input
+        std::cout << "Enter a message (or enter 'done' to exit): ";
+        std::getline(std::cin, inputMessage); // read a message from the user
+
+        // check if the input message is a command to terminate
+        if (inputMessage.empty()) {
+            std::cout << "Message is empty, nothing sent." << std::endl;
+            return;
+        } else if (inputMessage == "done") {
+            std::cout << "Terminating session." << std::endl;
+            _terminateFlag = true;
+        } else {
+            SendMessageToServer(inputMessage); // send the message to the server  if message isnt empty and message isnt done
+        }
+    }
+
+    // sends a message to the server and waits for a response
+    void SendMessageToServer(const std::string& message) {
+        if (_socket.Write(ByteArray(message)) <= 0) {
+            std::cout << "Failed to send message. Disconnecting." << std::endl;
+            _terminateFlag = true; //  terminate if message sending fails
+            return;
+        }
+
+        ByteArray response; // store the server response
+        _socket.Read(response); // read the server response
+        // if no response is received
+        
+        if (response.ToString().empty()) {
+            std::cout << "No response received. Disconnecting." << std::endl;
+            _terminateFlag = true;
+            return;
+        }
+        std::cout << "Response from server: " << response.ToString() << std::endl;
+        HandleServerCommunication();
+    }
+
+    void ListenToServer(){
+        ByteArray response; // store the server response
+        _socket.Read(response); // read the server response
+
+            if (response.ToString().empty()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
+                std::cout << "Listening again " << std::endl;
+                ListenToServer();
+        }else{
+            std::cout << "Response from server: " << response.ToString() << std::endl;
+            
+        }
+
+        
+    }
 
 
+};
 
+
+// main function to set up the client and initiate communication
+int main() {
+    std::cout << "I am a client." << std::endl; 
+
+    Socket socket("127.0.0.1", 3000); // create socket
+    bool terminateFlag = false;  
+
+    ServerCommunicator communicator(socket, terminateFlag); // create a servercommunicator instance
+
+    while (!terminateFlag) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
+    }
+
+    try {
+        socket.Close(); // close the socket on program termination
+        std::cout << "Socket closed successfully." << std::endl;
+    } catch (...) {
+        std::cerr << "Error closing socket." << std::endl;
+    }
+
+    return 0;
 }

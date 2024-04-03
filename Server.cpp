@@ -1,88 +1,212 @@
+#include "thread.h"
+#include "socketserver.h"
 #include <iostream>
-#include <enet/enet.h>
-int MAX_PLAYER_LIMIT = 32;
+#include <vector>
+#include <string>
+#include <algorithm>
 
-int main(int argc, char ** argv){
+using namespace Sync;
+// global varibles to track clients
+std::vector<Socket *> socketVectorTracker;
+std::vector<Socket *> inGame;
 
-    //intialize the enet server
-    if(enet_initialize() != 0){
-        fprintf(stderr, "An error occured while intializing enet. \n");
-        return EXIT_FAILURE;
-    }
-    //handle disconnect
-    atexit(enet_deinitialize);
+// class to manage individual client connections
+class SocketThread : public Thread
+{
+private:
+    ByteArray userInput; // buffer for storing user input
+    bool &endThread;     // boolean to thread termination
+    Socket &socket;      // socket reference
 
-
-    //enet objects to play with
-    ENetAddress address;
-    ENetHost* server;
-    ENetEvent event;
-
-
-    //where ever the server is running, allow connections from anywhere
-    address.host = ENET_HOST_ANY;
-    address.port = 7777;
-
-
-    //create enet host point called server
-    //2nd param is peers to connect or aka player limit
-    //3rd is number of channels, 4 & 5 is bandwidth, 0 is no limit
-    server = enet_host_create(&address, MAX_PLAYER_LIMIT, 1, 0, 0);
-
-    //check if server was created
-    if(server == NULL){
-        fprintf(stderr, "An error occured while trying to create enet server host\n");
-        return EXIT_FAILURE;
-    }
-
-
-
-    //GAME LOOP
-    //perchance change this to not be a while try and have a way to end it 
-    while(true){
-
-        //while the server is running 
-        while(enet_host_service(server, &event, 1000) > 0){
-
-            //check the different event types that occur
-            switch(event.type){
-
-
-            //handle new connection from a client and print the info
-            case ENET_EVENT_TYPE_CONNECT:
-                printf("A new client connected from %x:%u.\n",
-                event.peer -> address.host,
-                event.peer -> address.port);
+public:
+    // constructor
+    SocketThread(Socket &socket, bool &endThread) : socket(socket), endThread(endThread)
+    {
+        std::cout << " " << std::endl;
+        bool existingClient = false;
+        for (int i = 0; i < socketVectorTracker.size(); i++)
+        {
+            if (socketVectorTracker[i] == &socket)
+            { // Compare pointers
+                existingClient = true;
                 break;
-
-
-            //handle new message received from connected client
-            //print the data about the received message
-            case ENET_EVENT_TYPE_RECEIVE:
-                printf ("A packet of length %u containing %s was received from %x:%u on channel %u.\n",
-                event.packet -> dataLength,
-                event.packet -> data,
-                event.peer -> address.host,
-                event.peer -> address.port,
-                event.channelID);
-                break;
-        
-            case ENET_EVENT_TYPE_DISCONNECT:
-                printf("%x:%u disconnected.\n",
-                event.peer -> address.host,
-                event.peer -> address.port);
-                break;
-                
-
-
-
             }
         }
+        if (!existingClient)
+        {
+            std::cout << "New Client Connected" << std::endl;
+            socketVectorTracker.push_back(&socket); // Store the pointer
+
+            if (inGame.size() < 2)
+            {
+                std::cout << "Added Client to Game" << std::endl;
+                inGame.push_back(&socket); // Store the pointer
+            }
+            if (inGame.size() == 2)
+            {
+                bool senderInGame =false;
+                for (int i = 0; i < inGame.size(); i++)
+                    {
+                        if (&socket == inGame[i])
+                        {
+                            std::cout << "Sender is in the game" << std::endl;
+                            senderInGame = true;
+                        }
+                    }
+
+                if(senderInGame){
+                std::string msg = "Hey mother fucker -- you are player 1";
+                socket.Write(msg);
+                }else{
+                std::string msg = "Hey mother fucker -- you are spectating";
+                socket.Write(msg);
+                }
+            }
+            else
+            {
+                std::cout << "Game Full, Client must spectate" << std::endl;
+            }
+        }
+        else
+        {
+            std::cout << "Client reconnected" << std::endl;
+        }
+
+        // Debug print the connected clients and players in the game
+        std::cout << "Printing Connected Clients." << std::endl;
+        for (Socket *s : socketVectorTracker)
+        {
+            std::cout << s << std::endl; // Print the pointer for demonstration
+        }
+
+        std::cout << "Printing Players in the current game" << std::endl;
+        for (Socket *s : inGame)
+        {
+            std::cout << s << std::endl; // Print the pointer for demonstration
+        }
     }
-    //GAME LOOP
 
-    //currently unreachable but it handles disconnecting the server
-    enet_host_destroy(server);
-    return EXIT_SUCCESS;
+    virtual ~SocketThread() {} // destructor
 
+    // socket getter
+    Socket &GetSocket()
+    {
+        return socket;
+    }
+
+    // main thread function
+    virtual long ThreadMain() override
+    {
+        while (!endThread) // continue running until signaled to stop
+        {
+            try
+            {
+                int bytesRead = socket.Read(userInput); // read data from the socket
+                if (bytesRead > 0)                      // if data was received
+                {
+                    std::string response = userInput.ToString(); // convert to string
+                    std::cout << "Data received: " << response << " -- From Socket: " << &socket << std::endl;
+
+                    // Forward message to the other client in the game
+                    // Iterate through the inGame vector to find the opponent
+                    bool senderInGame = false;
+                    int oppIndex = 0;
+                    for (int i = 0; i < inGame.size(); i++)
+                    {
+                        if (&socket == inGame[i])
+                        {
+                            std::cout << "Sender is in the game" << std::endl;
+                            senderInGame = true;
+
+                            if (i == 0)
+                            {
+                                oppIndex = 1;
+                            }
+                        }
+                    }
+
+                    if (senderInGame)
+                    {
+                        // Check if the current iterator is not pointing to the sender's socket.
+                        (*inGame[oppIndex]).Write(response); // Send the message to the opponent.
+                        std::cout << "Message sent to opponent: " << inGame[oppIndex] << std::endl;
+
+                        // std::string msg = "Message was sent to opponent";
+                        // socket.Write(msg);
+                        //  Since there are only two players, we can break after finding the opponent.
+                    }else{
+                        std::string msg = "Shut the fuck up";
+                        socket.Write(msg);
+                    }
+                }
+                else if (bytesRead == 0) // client disconnected
+                {
+                    std::cout << "Client disconnected.\n";
+                    break; // exit
+                }
+            }
+            catch (...)
+            { // error handling
+                std::cout << "Error or client forceful disconnect.\n";
+                break;
+            }
+        }
+
+        socket.Close(); // close the socket
+        return 0;
+    }
+};
+
+// class for to manage the server and client threads
+class ServerThread : public Thread
+{
+private:
+    std::vector<SocketThread *> socketThreads;
+    bool endThread = false;
+    SocketServer &server;
+
+public:
+    // constructor
+    ServerThread(SocketServer &server) : server(server) {}
+
+    // destructor
+    virtual ~ServerThread()
+    {
+        for (auto *thread : socketThreads)
+        { // clean up allocated socket threads
+            delete thread;
+        }
+    }
+
+    // main thread function
+    virtual long ThreadMain() override
+    {
+        while (!endThread)
+        { // continue until signaled to stop
+            try
+            {
+                Socket *newConnection = new Socket(server.Accept());                  // accept new connections
+                socketThreads.push_back(new SocketThread(*newConnection, endThread)); // create and manage new socket thread
+            }
+            catch (...)
+            { // handle exceptions
+                endThread = true;
+                break;
+            }
+        }
+
+        return 0;
+    }
+};
+
+// main function to initialize the server
+int main()
+{
+    std::cout << "I am a server.\nPress enter to terminate the server.\n";
+    SocketServer server(3000);         // start the server on port 3000
+    ServerThread serverThread(server); // create and start the server thread
+
+    std::cin.get(); //  user input to terminate
+    std::cout << "Terminating server. Goodbye!\n";
+    server.Shutdown(); // shut down the server
 }
