@@ -60,7 +60,7 @@ public:
                 std::string msg = "Hey mother fucker -- you are player 1";
                 socket.Write(msg);
                 }else{
-                std::string msg = "Hey mother fucker -- you are spectating";
+                std::string msg = "Spectating...";
                 spectatorVectator.push_back(&socket); // Store the pointer
                 socket.Write(msg);
                 }
@@ -148,9 +148,26 @@ public:
                     for(int i = 0; i < inGame.size(); i++){
                         if(&socket == inGame[i]){
                         std::cout << "Client was in the game.\n";
-                        inGame[i] = spectatorVectator[0];
-                        std::cout << "added a spectator to the game: " << spectatorVectator[0] <<std::endl;
+                        if (!spectatorVectator.empty()){
+                        inGame[i] = spectatorVectator.front();
+                        for (const auto& socket : spectatorVectator)
+                        {
+                            std::cout << "Socket: " << socket << std::endl;
                         }
+                        std::string msg = "You are now in the game!";
+                        (*inGame[i]).Write(msg);
+
+                        spectatorVectator.erase(spectatorVectator.begin());
+                        std::cout << "Added a spectator to the game: " << spectatorVectator.front() <<std::endl;
+
+                        } else{
+
+                            inGame.erase(inGame.begin() + i);
+                            std::cout << "Waiting for more players to join " <<std::endl;
+
+                        }
+                        }
+
                     }
                     break; // exit
                 }

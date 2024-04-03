@@ -108,11 +108,16 @@ public:
         ByteArray response; // store the server response
         _socket.Read(response); // read the server response
 
-            if (response.ToString().empty()) {
+        if (response.ToString().empty()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100)); 
                 std::cout << "Listening again " << std::endl;
                 ListenToServer();
-        }else{
+        }else if(response.ToString() == "Spectating..."){
+            std::cout << "You Are Spectating" << std::endl;
+            ListenToServer();
+        }
+        
+        else{
             std::cout << "Response from server: " << response.ToString() << std::endl;
             
         }
