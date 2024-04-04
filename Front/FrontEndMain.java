@@ -1,10 +1,13 @@
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.net.Socket;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.awt.image.BufferedImage;
 import java.awt.image.RescaleOp;
 
@@ -104,6 +107,51 @@ public class FrontEndMain extends JFrame {
 	}
 	
 	
+
+	private void showNonModalDialog(String message, Consumer<String> onInputReceived) {
+    // Create a non-modal dialog
+    JDialog dialog = new JDialog(this, "Input Dialog", Dialog.ModalityType.MODELESS);
+    dialog.setLayout(new BorderLayout());
+    dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+    // A panel to contain the message and the input field
+    JPanel inputPanel = new JPanel();
+    inputPanel.setBorder(new EmptyBorder(10, 10, 10, 10)); // Add some padding
+    inputPanel.setLayout(new BoxLayout(inputPanel, BoxLayout.Y_AXIS));
+
+    // Add a label to display the message
+    JLabel messageLabel = new JLabel(message);
+    messageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+    messageLabel.setBorder(new EmptyBorder(0, 0, 10, 0)); // Add some space below the label
+    inputPanel.add(messageLabel);
+
+    // Add a text field for input
+    JTextField inputField = new JTextField();
+    inputField.setAlignmentX(Component.CENTER_ALIGNMENT);
+    inputField.setPreferredSize(new Dimension(200, 25)); // Set preferred size for the input field
+    inputPanel.add(inputField);
+
+    // A panel to contain the submit button
+    JPanel buttonPanel = new JPanel();
+    buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+    JButton submitButton = new JButton("Submit");
+    submitButton.addActionListener(e -> {
+        onInputReceived.accept(inputField.getText());
+        dialog.dispose();
+    });
+    buttonPanel.add(submitButton);
+
+    // Add the panels to the dialog
+    dialog.add(inputPanel, BorderLayout.CENTER);
+    dialog.add(buttonPanel, BorderLayout.SOUTH);
+
+    // Set the dialog size or pack it, and position it relative to the parent frame
+    dialog.pack();
+    dialog.setLocationRelativeTo(this);
+    dialog.setVisible(true);
+}
+
+
 	
 	
 	// This method is triggered when any character button is clicked
@@ -170,56 +218,60 @@ public class FrontEndMain extends JFrame {
         }
     }
 
-    private void startListeningThread() {
-        Thread listenThread = new Thread(() -> {
-            try {
-                String line;
-				boolean startMsg = false;
+	private void startListeningThread() {
+		Thread listenThread = new Thread(() -> {
+			try {
+				String line;
+				final boolean[] startMsg = { false };
+				final String[] questionResponseHolder = { null };
 				boolean spectating = false;
-				
-                while (!terminate.get() && (line = socketInput.readLine()) != null) {
+	
+				while (!terminate.get() && (line = socketInput.readLine()) != null) {
 					System.out.println(line);
-					if(line.equals("Server asks: Ready to start?")){
-						startMsg = true;
-					};
-					String questionResponse = JOptionPane.showInputDialog(line);
-					
-					if(questionResponse == null){
-						terminateProgram();
-						return;
+					if (line.equals("Server asks: Ready to start?")) {
+						startMsg[0] = true;
 					}
-					if(startMsg){
-						questionResponse = "Good Luck!";
-						startMsg = false;
+	
+					if (!spectating) {
+						showNonModalDialog(line, questionResponse -> {
+							if (questionResponse == null || questionResponse.trim().isEmpty()) {
+								terminateProgram();
+								return;
+							}
+	
+							if (startMsg[0]) {
+								questionResponse = "Good Luck!";
+								startMsg[0] = false;
+							}
+	
+							questionResponseHolder[0] = questionResponse; // Store the response in the holder
+	
+							showNonModalDialog("Question for Opponent:", questionForOpp -> {
+								if (questionForOpp == null || questionForOpp.trim().isEmpty()) {
+									terminateProgram();
+									return;
+								}
+								sendMessage(username + " says: " + questionResponseHolder[0] + " and asks: " + questionForOpp);
+							});
+						});
 					}
-					
-					if(line.equals("Spectating...")){
-						System.out.println("yo aint playing");
+	
+					if (line.equals("Spectating...")) {
+						System.out.println("You are spectating.");
 						spectating = true;
 					}
-
-					if (!spectating) {
-						//messageArea.append(username + questionResponse + "\n");
-
-						String questionForOpp = JOptionPane.showInputDialog("Question for Opponent:");
-
-					if(questionForOpp == null){
-						terminateProgram();
-						return;
-					}
-						sendMessage(username + " says: " + questionResponse + " and asks: " + questionForOpp);
-					}
-
-					
-                }
-            } catch (IOException e) {
-                if (!terminate.get()) {
-                    //messageArea.append("Lost connection to server: " + e.getMessage() + "\n");
-                }
-            }
-        });
-        listenThread.start();
-    }
+				}
+			} catch (IOException e) {
+				if (!terminate.get()) {
+					// Print error or show in the GUI
+				}
+			}
+		});
+		listenThread.start();
+	}
+	
+	
+	
 
 	private void terminateProgram() {
 		terminate.set(true);
