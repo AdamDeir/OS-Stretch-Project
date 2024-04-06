@@ -27,16 +27,34 @@ public class FrontEndMain extends JFrame {
 	private JLabel characterDisplay;
 
 	private JTextArea chatArea;
-	//private JTextField chatInputField;
+	// private JTextField chatInputField;
 
 	public FrontEndMain() {
 		// Initialize GUI Components
 
 		initializeGUI();
 		String link = JOptionPane.showInputDialog("Enter the link for the game you want to join!");
+		if (link == null || link.isEmpty()) {
+			JOptionPane.showMessageDialog(null, "Error connecting to the server, terminating the program...");
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			terminateProgram();
+		}
 		// Setup connection and start listening
-		connectToServer(link, 3000);
-
+		try {
+			connectToServer(link, 3000);
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(null, "Error connecting to the server, terminating the program...");
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException ex) {
+				ex.printStackTrace();
+			}
+			terminateProgram();
+		}
 	}
 
 	private void initializeGUI() {
@@ -70,14 +88,15 @@ public class FrontEndMain extends JFrame {
 
 		// Input Field and Button
 		JPanel inputPanel = new JPanel(new BorderLayout());
-		//chatInputField = new JTextField();
-		//chatInputField.setPreferredSize(new Dimension(200, 25)); // Increased width of the input field
-		//JButton sendButton = new JButton("Send");
-		//sendButton.addActionListener(e -> sendMessage(chatInputField.getText()));
-		//inputPanel.add(chatInputField, BorderLayout.CENTER);
-		//inputPanel.add(sendButton, BorderLayout.EAST);
+		// chatInputField = new JTextField();
+		// chatInputField.setPreferredSize(new Dimension(200, 25)); // Increased width
+		// of the input field
+		// JButton sendButton = new JButton("Send");
+		// sendButton.addActionListener(e -> sendMessage(chatInputField.getText()));
+		// inputPanel.add(chatInputField, BorderLayout.CENTER);
+		// inputPanel.add(sendButton, BorderLayout.EAST);
 
-		//chatInputField.addActionListener(e -> sendMessage());
+		// chatInputField.addActionListener(e -> sendMessage());
 
 		chatPanel.add(inputPanel, BorderLayout.SOUTH);
 		getContentPane().add(chatPanel, BorderLayout.WEST);
@@ -91,14 +110,13 @@ public class FrontEndMain extends JFrame {
 	}
 
 	private void sendMessage() {
-        //String message = chatInputField.getText();
-        //chatInputField.setText("");
+		// String message = chatInputField.getText();
+		// chatInputField.setText("");
 
-        // TODO: Send the message to the server...
+		// TODO: Send the message to the server...
 
-        //chatArea.append("Me: " + message + "\n");
-    }
-
+		// chatArea.append("Me: " + message + "\n");
+	}
 
 	private void selectRandomCharacter() {
 		int randomIndex = new Random().nextInt(characterIcons.length);
@@ -213,7 +231,7 @@ public class FrontEndMain extends JFrame {
 	}
 
 	// SERVER STUFF
-	private void connectToServer(String host, int port) {
+	private void connectToServer(String host, int port) throws IOException {
 		try {
 			if (theSocket != null && !theSocket.isClosed()) {
 				theSocket.close(); // Ensure old connections are closed
@@ -223,11 +241,12 @@ public class FrontEndMain extends JFrame {
 			socketInput = new BufferedReader(new InputStreamReader(theSocket.getInputStream()));
 			// messageArea.append("Connected to the server.\n");
 			username = JOptionPane.showInputDialog("Enter your username:");
-			username = username.substring(0,1).toUpperCase() + username.substring(1);
+			username = username.substring(0, 1).toUpperCase() + username.substring(1);
 			startListeningThread();
 		} catch (IOException e) {
 			// messageArea.append("Failed to connect: " + e.getMessage() + "\n");
 			terminate.set(true);
+			throw e; // Throw the exception to be caught by the caller
 		}
 	}
 
@@ -263,16 +282,22 @@ public class FrontEndMain extends JFrame {
 
 							questionResponseHolder[0] = questionResponse; // Store the response in the holder
 
-							showNonModalDialog("Question for Opponent:", questionForOpp -> {
-								if (questionForOpp == null || questionForOpp.trim().isEmpty()) {
-									terminateProgram();
-									return;
-								}
-								sendMessage(username + " says: " + questionResponseHolder[0] + " and asks: "
-										+ questionForOpp);
-								chatArea.append(username + " says: " + questionResponseHolder[0] + " and asks: "
-										+ questionForOpp + "\n");
-							});
+							final boolean[] validQuestion = { false }; // Declare validQuestion as final array
+
+							while (!validQuestion[0]) {
+								showNonModalDialog("Question for Opponent:", questionForOpp -> {
+									if (questionForOpp == null || questionForOpp.trim().isEmpty()) {
+										JOptionPane.showMessageDialog(null,
+												"Question cannot be empty. Please enter a valid question.");
+									} else {
+										validQuestion[0] = true; // Update the value of validQuestion
+										sendMessage(username + " says: " + questionResponseHolder[0] + " and asks: "
+												+ questionForOpp);
+										chatArea.append(username + " says: " + questionResponseHolder[0] + " and asks: "
+												+ questionForOpp + "\n");
+									}
+								});
+							}
 						});
 					}
 
