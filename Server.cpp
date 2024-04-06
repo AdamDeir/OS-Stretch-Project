@@ -5,12 +5,37 @@
 #include <string>
 #include <algorithm>
 #include <string> // Add missing include statement
+#include <cctype>
+#include <locale>
 
 using namespace Sync;
 // global varibles to track clients
 std::vector<Socket *> socketVectorTracker;
 std::vector<Socket *> inGame;
 std::vector<Socket *> spectatorVectator; 
+std::vector<Socket *> completedPlayers;
+bool gameOverFlag = false;
+
+
+// trim from start (in place)
+static inline void ltrim(std::string &s) {
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+}
+
+// trim from end (in place)
+static inline void rtrim(std::string &s) {
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+}
+
+// trim from both ends (in place)
+static inline void trim(std::string &s) {
+    ltrim(s);
+    rtrim(s);
+}
 
 // class to manage individual client connections
 class SocketThread : public Thread
@@ -108,12 +133,40 @@ public:
                 int bytesRead = socket.Read(userInput); // read data from the socket
                 if (bytesRead > 0)                      // if data was received
                 {
+                    
 
                     std::string response = userInput.ToString(); // convert to string
                     std::cout << "Data received: " << response << " -- From Socket: " << &socket << std::endl;
+                    std::string compareResponse = response;
+                    trim(compareResponse);
+                    std::cout<<response<<std::endl;
 
+                    if (compareResponse.compare("GUESSED_IT") == 0){
+                        gameOverFlag = true;
+                        std::cout <<"in the gussed it loop"<< std::endl;
+                    // Iterate through the inGame vector to find the opponent
+                    for (int i = 0; i < inGame.size(); i++) {
+                        if (&socket != inGame[i]) { // Find the other player
+                            std::string winMsg = "PLAYERWIN\n";//write to the player that won
+                            completedPlayers.push_back(&(*inGame[i])); 
+                            (*inGame[i]).Write(winMsg);
+                            std::cout << "Winning message sent to the opponent: " << inGame[i] << std::endl;
+                            // Optionally, handle game over logic here
+                            // Since message is sent, no need to continue the loop
+                        } else { //write to the client that lost
+                            std::string loseMsg = "PLAYERLOSE\n";
+                            completedPlayers.push_back(&(*inGame[i])); 
+                            (*inGame[i]).Write(loseMsg);
+                            std::cout << "Losing message sent to the opponent: " << inGame[i] << std::endl;
+                        }
+                    }
+                }else{
+                    std::cout <<"did not equal GUESSED_IT"<< std::endl;
+                }
                     // Forward message to the other client in the game
                     // Iterate through the inGame vector to find the opponent
+
+                    if(!gameOverFlag){
                     bool senderInGame = false;
                     int oppIndex = 0;
                     for (int i = 0; i < inGame.size(); i++)
@@ -143,9 +196,29 @@ public:
                         std::string msg = "Shut the fuck up\n";
                         socket.Write(msg);
                     }
+                }else{
+                    std::cout << "GAME IS OVER !!!!" <<std::endl;
+                    // for (int i = 0; i < inGame.size(); i++) {
+                    //     if (&socket != inGame[i]) { // Find the other player
+                    //         std::string winMsg = "PLAYERWIN\n";//write to the player that won
+                    //         (*inGame[i]).Write(winMsg);
+                    //         std::cout << "Winning message sent to the opponent: " << inGame[i] << std::endl;
+                    //         // Optionally, handle game over logic here
+                    //         // Since message is sent, no need to continue the loop
+                    //     }else{//write to the client that lost
+                    //         std::string loseMsg = "PLAYERLOSE\n";
+                    //         (*inGame[i]).Write(loseMsg);
+                    //         std::cout << "Losing message sent to the opponent: " << inGame[i] << std::endl;
+                    //     }
+                    // }
+
+
+                }
+
                 }
                 else if (bytesRead == 0) // client disconnected
                 {
+                    gameOverFlag = false;
                     std::cout << "Client disconnected.\n";
                     for(int i = 0; i < inGame.size(); i++){
                         if(&socket == inGame[i]){
@@ -162,6 +235,30 @@ public:
                         spectatorVectator.erase(spectatorVectator.begin());
                         std::cout << "Added a spectator to the game: " << spectatorVectator.front() <<std::endl;
 
+                        std::cout<<"Checking if we need to start the game"<<std::endl;
+
+                        bool transitionFlag = false;
+
+                        for (int i = 0; i < inGame.size(); i++) {
+                            for (int j = 0; j < completedPlayers.size(); j++) {
+                                if (inGame[i] == completedPlayers[j]) {
+                                    transitionFlag = true;
+                                    break;
+                                }
+                            }
+                            if (transitionFlag) {
+                                break;
+                            }
+                        }            
+
+                        if (inGame.size() == 2 && !transitionFlag)      
+                        {
+                            std::cout<<"enough players to start new game"<<std::endl;
+                            std::string restartMsg = "Server asks: Ready to start?\n";
+                            (*inGame[i]).Write(restartMsg);
+                        }else{
+                            std::cout<<"not enough players to start"<< std::endl;
+                        }
                         } else{
 
                             inGame.erase(inGame.begin() + i);
