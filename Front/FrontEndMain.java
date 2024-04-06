@@ -23,6 +23,7 @@ public class FrontEndMain extends JFrame {
 	private JButton[] characterButtons;
 	private ImageIcon[] characterIcons;
 	private boolean[] isGrayed;
+	private JButton guessedItButton = new JButton("Guessed It!");
 
 	private JLabel characterDisplay;
 
@@ -99,7 +100,11 @@ public class FrontEndMain extends JFrame {
 		// chatInputField.addActionListener(e -> sendMessage());
 
 		chatPanel.add(inputPanel, BorderLayout.SOUTH);
+
+		// guessed it button
 		getContentPane().add(chatPanel, BorderLayout.WEST);
+		guessedItButton.addActionListener(e -> sendGuessedItMessage());
+		getContentPane().add(guessedItButton, BorderLayout.SOUTH);
 
 		scrollPane.setPreferredSize(new Dimension(200, 400)); // Set the size of the chat area
 
@@ -116,6 +121,15 @@ public class FrontEndMain extends JFrame {
 		// TODO: Send the message to the server...
 
 		// chatArea.append("Me: " + message + "\n");
+	}
+
+	private void sendGuessedItMessage() {
+		// Send a predefined message to the server indicating the player has guessed
+		sendMessage("GUESSED_IT");
+
+		// Optional: Disable the button after sending the message to prevent multiple
+		// clicks
+		guessedItButton.setEnabled(false);
 	}
 
 	private void selectRandomCharacter() {
@@ -257,18 +271,50 @@ public class FrontEndMain extends JFrame {
 				final boolean[] startMsg = { false };
 				final String[] questionResponseHolder = { null };
 				boolean spectating = false;
+				boolean specToPlay = false;
 
 				while (!terminate.get() && (line = socketInput.readLine()) != null) {
 					// System.out.println(line);
 
+					// check if the game has been won
+					System.out.println(line);
+					if (line.equals("PLAYERLOSE")) {
+						JOptionPane.showMessageDialog(null, "You lost !!!!!", "Game Over",
+								JOptionPane.INFORMATION_MESSAGE);
+						try {
+							Thread.sleep(3500);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+						terminateProgram();
+					} else if (line.equals("PLAYERWIN")) {
+						JOptionPane.showMessageDialog(null, "You won!!!!!!!", "Congratulations",
+								JOptionPane.INFORMATION_MESSAGE);
+						try {
+							Thread.sleep(3500);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+						terminateProgram();
+					}
+
+					specToPlay = false;
+					if (line.equals("You are now in the game!")) {
+						System.out.println("in game worked");
+						spectating = false;
+						specToPlay = true;
+					}
+
 					if (line.equals("Server asks: Ready to start?")) {
+						System.out.println("start message received");
 						startMsg[0] = true;
+						spectating = false;
 						// chatArea.append(line);
 					} else {
 						chatArea.append(line + "\n");
 					}
 
-					if (!spectating) {
+					if (!spectating && specToPlay == false) {
 						showNonModalDialog(line, questionResponse -> {
 							if (questionResponse == null || questionResponse.trim().isEmpty()) {
 								terminateProgram();
