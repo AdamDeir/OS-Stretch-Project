@@ -24,6 +24,7 @@ public class FrontEndMain extends JFrame {
 	private ImageIcon[] characterIcons;
 	private boolean[] isGrayed;
 	private JButton guessedItButton = new JButton("Guessed It!");
+	private int waitingFlag = 0;
 
 	private JLabel characterDisplay;
 
@@ -112,15 +113,6 @@ public class FrontEndMain extends JFrame {
 		// button, etc., here
 
 		setVisible(true);
-	}
-
-	private void sendMessage() {
-		// String message = chatInputField.getText();
-		// chatInputField.setText("");
-
-		// TODO: Send the message to the server...
-
-		// chatArea.append("Me: " + message + "\n");
 	}
 
 	private void sendGuessedItMessage() {
@@ -247,6 +239,7 @@ public class FrontEndMain extends JFrame {
 	// SERVER STUFF
 	private void connectToServer(String host, int port) throws IOException {
 		try {
+			chatArea.append("Waiting for players...\n");
 			if (theSocket != null && !theSocket.isClosed()) {
 				theSocket.close(); // Ensure old connections are closed
 			}
@@ -274,6 +267,8 @@ public class FrontEndMain extends JFrame {
 				boolean specToPlay = false;
 
 				while (!terminate.get() && (line = socketInput.readLine()) != null) {
+
+					System.out.println("LINE LINE LINE");
 					// System.out.println(line);
 
 					// check if the game has been won
@@ -304,6 +299,7 @@ public class FrontEndMain extends JFrame {
 						spectating = false;
 						specToPlay = true;
 					}
+
 
 					if (line.equals("Server asks: Ready to start?")) {
 						System.out.println("start message received");
