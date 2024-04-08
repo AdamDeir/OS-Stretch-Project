@@ -139,9 +139,9 @@ public class FrontEndMain extends JFrame {
 		isGrayed = new boolean[12]; // Initialize the array, all values are false by default
 
 		String[] characters = new String[] {
-				"dounavis.jpg", "eagleson.jpg", "essex.jpg", "mcIssac.jpg",
-				"ouda.jpg", "rahman.jpg", "rao.jpg", "samarabandu.jpg",
-				"ali.jpg", "Yang.jpg", "Mcleod.jfif", "L'Heureux.jfif"
+				"Dounavis.jpg", "Eagleson.jpg", "Essex.jpg", "McIsaac.jpg",
+				"Ouda.jpg", "Rahman.jpg", "Rao.jpg", "Samarabandu.jpg",
+				"Ali.jpg", "Yang.jpg", "McLeod.jfif", "L'Heureux.jfif"
 		};
 
 		String basePath = "images/";
@@ -277,11 +277,11 @@ public class FrontEndMain extends JFrame {
 
 				while (!terminate.get() && (line = socketInput.readLine()) != null) {
 
-					System.out.println("LINE LINE LINE");
+					// System.out.println("LINE LINE LINE");
 					// System.out.println(line);
 
 					// check if the game has been won
-					System.out.println(line);
+					// System.out.println(line);
 					if (line.equals("PLAYERLOSE")) {
 						JOptionPane.showMessageDialog(null, "You lost !!!!!", "Game Over",
 								JOptionPane.INFORMATION_MESSAGE);
@@ -304,14 +304,14 @@ public class FrontEndMain extends JFrame {
 
 					specToPlay = false;
 					if (line.equals("You are now in the game!")) {
-						System.out.println("in game worked");
+						// System.out.println("in game worked");
 						spectating = false;
 						specToPlay = true;
 					}
 
 
 					if (line.equals("Server asks: Ready to start?")) {
-						System.out.println("start message received");
+						// System.out.println("start message received");
 						startMsg[0] = true;
 						spectating = false;
 						// chatArea.append(line);
@@ -346,7 +346,7 @@ public class FrontEndMain extends JFrame {
 					}
 
 					if (line.equals("Spectating...")) {
-						System.out.println("You are spectating.");
+						// System.out.println("You are spectating.");
 						spectating = true;
 					}
 				}
