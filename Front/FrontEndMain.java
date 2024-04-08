@@ -304,7 +304,7 @@ public class FrontEndMain extends JFrame {
 
 					specToPlay = false;
 					if (line.equals("You are now in the game!")) {
-						// System.out.println("in game worked");
+						chatArea.append("Waiting for players.");
 						spectating = false;
 						specToPlay = true;
 					}
