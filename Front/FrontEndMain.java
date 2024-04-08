@@ -351,9 +351,12 @@ public class FrontEndMain extends JFrame {
 						spectating = true;
 					}
 				}
+				if (!terminate.get()) {
+					JOptionPane.showMessageDialog(null, "Disconnected from server", "Connection Lost", JOptionPane.WARNING_MESSAGE);
+					terminateProgram();
+				}
 			} catch (IOException e) {
 				if (!terminate.get()) {
-					System.out.println("server is gone");
 					chatArea.append("Server says goodbye!");
 
 				}
