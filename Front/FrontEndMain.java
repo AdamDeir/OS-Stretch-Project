@@ -326,7 +326,7 @@ public class FrontEndMain extends JFrame {
 							// }
 
 							if (startMsg[0]) {
-								questionResponse = "Good Luck!";
+								questionResponse = "New game is starting. Good Luck!";
 								startMsg[0] = false;
 							}
 
