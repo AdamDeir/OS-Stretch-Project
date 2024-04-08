@@ -193,7 +193,7 @@ public:
                         // socket.Write(msg);
                         //  Since there are only two players, we can break after finding the opponent.
                     }else{
-                        std::string msg = "You arent playing yet!\n";
+                        std::string msg = "You aren't playing yet!\n";
                         socket.Write(msg);
                     }
                 }else{
@@ -223,6 +223,7 @@ public:
                     for(int i = 0; i < inGame.size(); i++){
                         if(&socket == inGame[i]){
                         std::cout << "Client was in the game.\n";
+                        
                         if (!spectatorVectator.empty()){
                         inGame[i] = spectatorVectator.front();
                         for (const auto& socket : spectatorVectator)
@@ -260,10 +261,14 @@ public:
                             std::cout<<"not enough players to start"<< std::endl;
                         }
                         } else{
-
-                            inGame.erase(inGame.begin() + i);
+                            inGame.erase(inGame.begin() + i);//earse person that left
                             std::cout << "Waiting for more players to join " <<std::endl;
-
+                            for(int i = 0; i < inGame.size(); i++){
+                                std::string disconnectMsg = "Opponent disconnected. Waiting for more players to join\n";
+                                (*inGame[i]).Write(disconnectMsg);
+                                std::cout << "Disconnect message sent to the opponent: " << inGame[i] << std::endl;
+                                break;
+                        }
                         }
                         }
 

@@ -23,7 +23,7 @@ public class FrontEndMain extends JFrame {
 	private JButton[] characterButtons;
 	private ImageIcon[] characterIcons;
 	private boolean[] isGrayed;
-	private JButton guessedItButton = new JButton("Guessed It!");
+	private JButton guessedItButton = new JButton("Click this button when your opponent guesses your character!");
 	private int waitingFlag = 0;
 
 	private JLabel characterDisplay;
@@ -60,7 +60,7 @@ public class FrontEndMain extends JFrame {
 	}
 
 	private void initializeGUI() {
-		setTitle("Network Game Console");
+		setTitle("Guess Who - Professor Version");
 		setSize(800, 600); // Adjust the size to fit the game board
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
@@ -321,10 +321,9 @@ public class FrontEndMain extends JFrame {
 
 					if (!spectating && specToPlay == false) {
 						showNonModalDialog(line, questionResponse -> {
-							if (questionResponse == null || questionResponse.trim().isEmpty()) {
-								terminateProgram();
-								return;
-							}
+							// if (questionResponse == null || questionResponse.trim().isEmpty()) {
+							// 	questionResponse = " \n";							
+							// }
 
 							if (startMsg[0]) {
 								questionResponse = "Good Luck!";
@@ -334,13 +333,13 @@ public class FrontEndMain extends JFrame {
 							questionResponseHolder[0] = questionResponse; // Store the response in the holder
 
 							showNonModalDialog("Question for Opponent:", questionForOpp -> {
-								if (questionForOpp == null || questionForOpp.trim().isEmpty()) {
-									terminateProgram();
-									return;
-								}
-								sendMessage(username + " says: " + questionResponseHolder[0] + " and asks: "
+								// if (questionForOpp == null || questionForOpp.trim().isEmpty()) {
+								// 	questionForOpp = " \n";
+								// 	return;
+								// }
+								sendMessage(username + " says: " + questionResponseHolder[0] + " || " + username+ " Asks: "
 										+ questionForOpp);
-								chatArea.append(username + " says: " + questionResponseHolder[0] + " and asks: "
+								chatArea.append(username + " says: " + questionResponseHolder[0] + " || " + username+ " Asks: "
 										+ questionForOpp + "\n");
 							});
 						});
