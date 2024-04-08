@@ -309,6 +309,16 @@ public class FrontEndMain extends JFrame {
 						specToPlay = true;
 					}
 
+					if (line.equals("Opponent disconnected. You win!")){
+						chatArea.append("Your opponent disconnected. Game over. Peace out.");
+						try {
+							Thread.sleep(3500);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+						terminateProgram();
+					}
+
 
 					if (line.equals("Server asks: Ready to start?")) {
 						// System.out.println("start message received");

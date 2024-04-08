@@ -11,28 +11,33 @@
 using namespace Sync;
 // global varibles to track clients
 std::vector<Socket *> socketVectorTracker;
-std::vector<Socket *> inGame;
-std::vector<Socket *> spectatorVectator; 
+std::vector<Socket *> game1;
+std::vector<Socket *> spectatorVectator;
 std::vector<Socket *> completedPlayers;
 bool gameOverFlag = false;
 
+std::vector<std::vector<Socket *>> gamesList;
+int gamesListCount = 0;
 
 // trim from start (in place)
-static inline void ltrim(std::string &s) {
-    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
-        return !std::isspace(ch);
-    }));
+static inline void ltrim(std::string &s)
+{
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch)
+                                    { return !std::isspace(ch); }));
 }
 
 // trim from end (in place)
-static inline void rtrim(std::string &s) {
-    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
-        return !std::isspace(ch);
-    }).base(), s.end());
+static inline void rtrim(std::string &s)
+{
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch)
+                         { return !std::isspace(ch); })
+                .base(),
+            s.end());
 }
 
 // trim from both ends (in place)
-static inline void trim(std::string &s) {
+static inline void trim(std::string &s)
+{
     ltrim(s);
     rtrim(s);
 }
@@ -51,6 +56,10 @@ public:
     {
         std::cout << " " << std::endl;
         bool existingClient = false;
+        //if no games make one
+        if(gamesListCount == 0){
+            gamesList.push_back(game1);
+        }
         for (int i = 0; i < socketVectorTracker.size(); i++)
         {
             if (socketVectorTracker[i] == &socket)
@@ -65,35 +74,58 @@ public:
             socketVectorTracker.push_back(&socket); // Store the pointer
 
 
-            if (inGame.size() < 2)
+            if (gamesList[gamesListCount].size() < 2)
             {
                 std::cout << "Added Client to Game" << std::endl;
-                inGame.push_back(&socket); // Store the pointer
-            } 
-            if (inGame.size() == 2)
+                gamesList[gamesListCount].push_back(&socket); // Store the pointer
+            }
+            if (gamesList[gamesListCount].size() == 2) // if the current game has 2 player in it now
             {
-                bool senderInGame =false;
-                for (int i = 0; i < inGame.size(); i++)
+                bool senderInGame = false;
+
+                for (const auto &game : gamesList)
+                {
+                    for (const auto &playerSocket : game)
                     {
-                        if (&socket == inGame[i])
+                        if (playerSocket == &socket)
                         {
                             std::cout << "Sender is in the game" << std::endl;
                             senderInGame = true;
+                            break; // Breaks inner loop if the socket is found
                         }
                     }
+                    if (senderInGame)
+                    {
+                        break; // Breaks outer loop if the socket is found
+                    }
+                }
 
-                if(senderInGame){
-                std::string msg = "Server asks: Ready to start?\n";
-                socket.Write(msg);
-                }else{
-                std::string msg = "Spectating...\n";
-                spectatorVectator.push_back(&socket); // Store the pointer
-                socket.Write(msg);
+                if (senderInGame)
+                {
+                    std::string msg = "Server asks: Ready to start?\n";
+                    socket.Write(msg);
+                }
+                else // current game is full, make new game vector and add player to it
+                {
+                    // std::string msg = "Spectating...\n";
+
+                    // spectatorVectator.push_back(&socket); // Store the pointer
+                    // socket.Write(msg);
+
+                    gamesListCount++;              // increament the count of games
+                    std::vector<Socket *> newGame; // MAYBE LOOK HERE AGAIN
+                    newGame.push_back(&socket);
+                    gamesList.push_back(newGame);
                 }
             }
             else
             {
-                std::cout << "Game Full, Client must spectate" << std::endl;
+                std::cout << "Making new game for new player" << std::endl;
+
+                    gamesListCount++;              // increament the count of games
+                    std::vector<Socket *> newGame; // MAYBE LOOK HERE AGAIN
+                    newGame.push_back(&socket);
+                    gamesList.push_back(newGame);
             }
         }
         else
@@ -109,7 +141,7 @@ public:
         }
 
         std::cout << "Printing Players in the current game" << std::endl;
-        for (Socket *s : inGame)
+        for (Socket *s : gamesList[gamesListCount])
         {
             std::cout << s << std::endl; // Print the pointer for demonstration
         }
@@ -130,148 +162,200 @@ public:
         {
             try
             {
+                int indexOfGamePlayerWasIn = 0;
+
                 int bytesRead = socket.Read(userInput); // read data from the socket
                 if (bytesRead > 0)                      // if data was received
                 {
-                    
+                    int i = 0; // Declare the variable "i" before the loop
+                    for (const auto& game : gamesList)
+                    {
+                        for (const auto& player : game)
+                        {
+                            if (&socket == player)
+                            {
+                                indexOfGamePlayerWasIn = i;
+                            }
+                        }
+                        i++; // Increment "i" after each iteration
+                    }
+
+                    std::vector<Socket *> theGame = gamesList[indexOfGamePlayerWasIn];
 
                     std::string response = userInput.ToString(); // convert to string
                     std::cout << "Data received: " << response << " -- From Socket: " << &socket << std::endl;
                     std::string compareResponse = response;
                     trim(compareResponse);
-                    std::cout<<response<<std::endl;
+                    std::cout << response << std::endl;
 
-                    if (compareResponse.compare("GUESSED_IT") == 0){
+                    if (compareResponse.compare("GUESSED_IT") == 0)
+                    {
                         gameOverFlag = true;
-                        std::cout <<"in the gussed it loop"<< std::endl;
-                    // Iterate through the inGame vector to find the opponent
-                    for (int i = 0; i < inGame.size(); i++) {
-                        if (&socket != inGame[i]) { // Find the other player
-                            std::string winMsg = "PLAYERWIN\n";//write to the player that won
-                            completedPlayers.push_back(&(*inGame[i])); 
-                            (*inGame[i]).Write(winMsg);
-                            std::cout << "Winning message sent to the opponent: " << inGame[i] << std::endl;
-                            // Optionally, handle game over logic here
-                            // Since message is sent, no need to continue the loop
-                        } else { //write to the client that lost
-                            std::string loseMsg = "PLAYERLOSE\n";
-                            completedPlayers.push_back(&(*inGame[i])); 
-                            (*inGame[i]).Write(loseMsg);
-                            std::cout << "Losing message sent to the opponent: " << inGame[i] << std::endl;
+                        std::cout << "in the gussed it loop" << std::endl;
+                        // Iterate through the inGame vector to find the opponent
+                        for (int i = 0; i < theGame.size(); i++)
+                        {
+                            if (&socket != theGame[i])
+                            {                                       // Find the other player
+                                std::string winMsg = "PLAYERWIN\n"; // write to the player that won
+                                completedPlayers.push_back(&(*theGame[i]));
+                                (*theGame[i]).Write(winMsg);
+                                std::cout << "Winning message sent to the opponent: " << theGame[i] << std::endl;
+                                // Optionally, handle game over logic here
+                                // Since message is sent, no need to continue the loop
+                            }
+                            else
+                            { // write to the client that lost
+                                std::string loseMsg = "PLAYERLOSE\n";
+                                completedPlayers.push_back(&(*theGame[i]));
+                                (*theGame[i]).Write(loseMsg);
+                                std::cout << "Losing message sent to the opponent: " << theGame[i] << std::endl;
+                            }
                         }
                     }
-                }else{
-                    std::cout <<"did not equal GUESSED_IT"<< std::endl;
-                }
+                    else
+                    {
+                        std::cout << "did not equal GUESSED_IT" << std::endl;
+                    }
                     // Forward message to the other client in the game
                     // Iterate through the inGame vector to find the opponent
 
-                    if(!gameOverFlag){
-                    bool senderInGame = false;
-                    int oppIndex = 0;
-                    for (int i = 0; i < inGame.size(); i++)
+                    if (!gameOverFlag)
                     {
-                        if (&socket == inGame[i])
+                        bool senderInGame = false;
+                        int oppIndex = 0;
+                        for (int i = 0; i < theGame.size(); i++)
                         {
-                            std::cout << "Sender is in the game" << std::endl;
-                            senderInGame = true;
-
-                            if (i == 0)
+                            if (&socket == theGame[i])
                             {
-                                oppIndex = 1;
+                                std::cout << "Sender is in the game" << std::endl;
+                                senderInGame = true;
+
+                                if (i == 0)
+                                {
+                                    oppIndex = 1;
+                                }
                             }
                         }
-                    }
 
-                    if (senderInGame)
+                        if (senderInGame)
+                        {
+                            // Check if the current iterator is not pointing to the sender's socket.
+                            (*theGame[oppIndex]).Write(response); // Send the message to the opponent.
+                            std::cout << "Message sent to opponent: " << theGame[oppIndex] << std::endl;
+
+                            // std::string msg = "Message was sent to opponent";
+                            // socket.Write(msg);
+                            //  Since there are only two players, we can break after finding the opponent.
+                        }
+                        else
+                        {
+                            std::string msg = "You aren't playing yet!\n";
+                            socket.Write(msg);
+                        }
+                    }
+                    else
                     {
-                        // Check if the current iterator is not pointing to the sender's socket.
-                        (*inGame[oppIndex]).Write(response); // Send the message to the opponent.
-                        std::cout << "Message sent to opponent: " << inGame[oppIndex] << std::endl;
-
-                        // std::string msg = "Message was sent to opponent";
-                        // socket.Write(msg);
-                        //  Since there are only two players, we can break after finding the opponent.
-                    }else{
-                        std::string msg = "You aren't playing yet!\n";
-                        socket.Write(msg);
+                        std::cout << "GAME IS OVER !!!!" << std::endl;
+                        // for (int i = 0; i < inGame.size(); i++) {
+                        //     if (&socket != inGame[i]) { // Find the other player
+                        //         std::string winMsg = "PLAYERWIN\n";//write to the player that won
+                        //         (*inGame[i]).Write(winMsg);
+                        //         std::cout << "Winning message sent to the opponent: " << inGame[i] << std::endl;
+                        //         // Optionally, handle game over logic here
+                        //         // Since message is sent, no need to continue the loop
+                        //     }else{//write to the client that lost
+                        //         std::string loseMsg = "PLAYERLOSE\n";
+                        //         (*inGame[i]).Write(loseMsg);
+                        //         std::cout << "Losing message sent to the opponent: " << inGame[i] << std::endl;
+                        //     }
+                        // }
                     }
-                }else{
-                    std::cout << "GAME IS OVER !!!!" <<std::endl;
-                    // for (int i = 0; i < inGame.size(); i++) {
-                    //     if (&socket != inGame[i]) { // Find the other player
-                    //         std::string winMsg = "PLAYERWIN\n";//write to the player that won
-                    //         (*inGame[i]).Write(winMsg);
-                    //         std::cout << "Winning message sent to the opponent: " << inGame[i] << std::endl;
-                    //         // Optionally, handle game over logic here
-                    //         // Since message is sent, no need to continue the loop
-                    //     }else{//write to the client that lost
-                    //         std::string loseMsg = "PLAYERLOSE\n";
-                    //         (*inGame[i]).Write(loseMsg);
-                    //         std::cout << "Losing message sent to the opponent: " << inGame[i] << std::endl;
-                    //     }
-                    // }
-
-
-                }
-
                 }
                 else if (bytesRead == 0) // client disconnected
                 {
+
+
+                    int i = 0; // Declare the variable "i" before the loop
+                    for (const auto& game : gamesList)
+                    {
+                        for (const auto& player : game)
+                        {
+                            if (&socket == player)
+                            {
+                                indexOfGamePlayerWasIn = i;
+                            }
+                        }
+                        i++; // Increment "i" after each iteration
+                    }
+
+ std::vector<Socket *> theGame = gamesList[indexOfGamePlayerWasIn];
+
                     gameOverFlag = false;
                     std::cout << "Client disconnected.\n";
-                    for(int i = 0; i < inGame.size(); i++){
-                        if(&socket == inGame[i]){
-                        std::cout << "Client was in the game.\n";
-                        
-                        if (!spectatorVectator.empty()){
-                        inGame[i] = spectatorVectator.front();
-                        for (const auto& socket : spectatorVectator)
+                    for (int i = 0; i < theGame.size(); i++)
+                    {
+                        if (&socket == theGame[i])
                         {
-                            std::cout << "Socket: " << socket << std::endl;
-                        }
-                        std::string msg = "You are now in the game!\n";
-                        (*inGame[i]).Write(msg);
+                            std::cout << "Client was in the game.\n";
 
-                        spectatorVectator.erase(spectatorVectator.begin());
-                        std::cout << "Added a spectator to the game: " << spectatorVectator.front() <<std::endl;
+                            // if (!spectatorVectator.empty())
+                            // {
+                            //     theGame[i] = spectatorVectator.front();
+                            //     for (const auto &socket : spectatorVectator)
+                            //     {
+                            //         std::cout << "Socket: " << socket << std::endl;
+                            //     }
+                            //     std::string msg = "You are now in the game!\n";
+                            //     (*theGame[i]).Write(msg);
 
-                        std::cout<<"Checking if we need to start the game"<<std::endl;
+                            //     spectatorVectator.erase(spectatorVectator.begin());
+                            //     std::cout << "Added a spectator to the game: " << spectatorVectator.front() << std::endl;
 
-                        bool transitionFlag = false;
+                            //     std::cout << "Checking if we need to start the game" << std::endl;
 
-                        for (int i = 0; i < inGame.size(); i++) {
-                            for (int j = 0; j < completedPlayers.size(); j++) {
-                                if (inGame[i] == completedPlayers[j]) {
-                                    transitionFlag = true;
+                            //     bool transitionFlag = false;
+
+                            //     for (int i = 0; i < theGame.size(); i++)
+                            //     {
+                            //         for (int j = 0; j < completedPlayers.size(); j++)
+                            //         {
+                            //             if (theGame[i] == completedPlayers[j])
+                            //             {
+                            //                 transitionFlag = true;
+                            //                 break;
+                            //             }
+                            //         }
+                            //         if (transitionFlag)
+                            //         {
+                            //             break;
+                            //         }
+                            //     }
+
+                            //     if (inGame.size() == 2 && !transitionFlag)
+                            //     {
+                            //         std::cout << "enough players to start new game" << std::endl;
+                            //         std::string restartMsg = "Server asks: Ready to start?\n";
+                            //         (*inGame[i]).Write(restartMsg);
+                            //     }
+                            //     else
+                            //     {
+                            //         std::cout << "not enough players to start" << std::endl;
+                            //     }
+                            // }
+                           
+                            
+                                theGame.erase(theGame.begin() + i); // earse person that left
+                                std::cout << "Waiting for more players to join " << std::endl;
+                                for (int i = 0; i < theGame.size(); i++)
+                                {
+                                    std::string disconnectMsg = "Opponent disconnected. You win!\n";
+                                    (*theGame[i]).Write(disconnectMsg);
+                                    std::cout << "Disconnect message sent to the opponent: " << theGame[i] << std::endl;
                                     break;
                                 }
-                            }
-                            if (transitionFlag) {
-                                break;
-                            }
-                        }            
-
-                        if (inGame.size() == 2 && !transitionFlag)      
-                        {
-                            std::cout<<"enough players to start new game"<<std::endl;
-                            std::string restartMsg = "Server asks: Ready to start?\n";
-                            (*inGame[i]).Write(restartMsg);
-                        }else{
-                            std::cout<<"not enough players to start"<< std::endl;
+                            
                         }
-                        } else{
-                            inGame.erase(inGame.begin() + i);//earse person that left
-                            std::cout << "Waiting for more players to join " <<std::endl;
-                            for(int i = 0; i < inGame.size(); i++){
-                                std::string disconnectMsg = "Opponent disconnected. Waiting for more players to join\n";
-                                (*inGame[i]).Write(disconnectMsg);
-                                std::cout << "Disconnect message sent to the opponent: " << inGame[i] << std::endl;
-                                break;
-                        }
-                        }
-                        }
-
                     }
                     break; // exit
                 }
