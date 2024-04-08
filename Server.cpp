@@ -193,7 +193,7 @@ public:
                         // socket.Write(msg);
                         //  Since there are only two players, we can break after finding the opponent.
                     }else{
-                        std::string msg = "Shut the fuck up\n";
+                        std::string msg = "You arent playing yet!\n";
                         socket.Write(msg);
                     }
                 }else{

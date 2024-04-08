@@ -150,17 +150,24 @@ public class FrontEndMain extends JFrame {
 		characterGrid.setBorder(BorderFactory.createTitledBorder("Guess Who Characters"));
 
 		for (int i = 0; i < characters.length; i++) {
-			final int index = i;
-			ImageIcon icon = new ImageIcon(basePath + characters[i]);
-			Image img = icon.getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH);
-			icon = new ImageIcon(img);
+            final int index = i;
+            ImageIcon icon = new ImageIcon(basePath + characters[i]);
+            Image img = icon.getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH);
+            icon = new ImageIcon(img);
 
-			characterButtons[i] = new JButton(icon);
-			characterButtons[i].addActionListener(e -> characterButtonClicked(index));
-			characterGrid.add(characterButtons[i]);
+            // Extract the name from the filename
+            String name = characters[i].substring(0, characters[i].lastIndexOf('.')).replace('_', ' ');
 
-			characterIcons[i] = icon;
-		}
+            // Create a button with an image and a label
+            characterButtons[i] = new JButton(name, icon);
+            characterButtons[i].setVerticalTextPosition(SwingConstants.BOTTOM);
+            characterButtons[i].setHorizontalTextPosition(SwingConstants.CENTER);
+            characterButtons[i].addActionListener(e -> characterButtonClicked(index));
+            characterGrid.add(characterButtons[i]);
+
+            characterIcons[i] = icon;
+        }
+
 
 		getContentPane().add(characterGrid, BorderLayout.CENTER);
 	}
@@ -247,7 +254,9 @@ public class FrontEndMain extends JFrame {
 			socketOutput = new PrintWriter(theSocket.getOutputStream(), true);
 			socketInput = new BufferedReader(new InputStreamReader(theSocket.getInputStream()));
 			// messageArea.append("Connected to the server.\n");
-			username = JOptionPane.showInputDialog("Enter your username:");
+			while(username == null || username.isEmpty()) {
+				username = JOptionPane.showInputDialog("Enter your username:");
+			}
 			username = username.substring(0, 1).toUpperCase() + username.substring(1);
 			startListeningThread();
 		} catch (IOException e) {
@@ -344,7 +353,9 @@ public class FrontEndMain extends JFrame {
 				}
 			} catch (IOException e) {
 				if (!terminate.get()) {
-					// Print error or show in the GUI
+					System.out.println("server is gone");
+					chatArea.append("Server says goodbye!");
+
 				}
 			}
 		});
