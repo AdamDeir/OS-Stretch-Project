@@ -328,22 +328,16 @@ public class FrontEndMain extends JFrame {
 
 							questionResponseHolder[0] = questionResponse; // Store the response in the holder
 
-							final boolean[] validQuestion = { false }; // Declare validQuestion as final array
-
-							while (!validQuestion[0]) {
-								showNonModalDialog("Question for Opponent:", questionForOpp -> {
-									if (questionForOpp == null || questionForOpp.trim().isEmpty()) {
-										JOptionPane.showMessageDialog(null,
-												"Question cannot be empty. Please enter a valid question.");
-									} else {
-										validQuestion[0] = true; // Update the value of validQuestion
-										sendMessage(username + " says: " + questionResponseHolder[0] + " and asks: "
-												+ questionForOpp);
-										chatArea.append(username + " says: " + questionResponseHolder[0] + " and asks: "
-												+ questionForOpp + "\n");
-									}
-								});
-							}
+							showNonModalDialog("Question for Opponent:", questionForOpp -> {
+								if (questionForOpp == null || questionForOpp.trim().isEmpty()) {
+									terminateProgram();
+									return;
+								}
+								sendMessage(username + " says: " + questionResponseHolder[0] + " and asks: "
+										+ questionForOpp);
+								chatArea.append(username + " says: " + questionResponseHolder[0] + " and asks: "
+										+ questionForOpp + "\n");
+							});
 						});
 					}
 
